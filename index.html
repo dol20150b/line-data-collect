@@ -44,6 +44,26 @@
         .btn-submit:hover { background-color: #009900; }
         #loading { display: none; text-align: center; padding: 20px; }
         .required-star { color: red; }
+        /* ตกแต่งปุ่มเลือกไฟล์ให้เป็นสีฟ้า */
+        .custom-file-input::file-selector-button {
+            background-color: #007bff; /* สีฟ้า */
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            margin-right: 10px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .custom-file-input::file-selector-button:hover {
+            background-color: #0056b3; /* สีฟ้าเข้มขึ้นตอนเอาเมาส์วาง */
+        }
+
+        /* ปรับให้ขอบของช่อง input ดูสมูทเข้ากับปุ่ม */
+        .form-control.custom-file-input {
+            padding: 6px;
+        }
     </style>
 </head>
 <body>
@@ -61,7 +81,8 @@
 
                 <div class="mb-4">
                     <label class="form-label">รูปภาพยืนยันการโหวต <span class="required-star">*</span></label>
-                    <input type="file" id="imageFile" class="form-control" accept="image/*" required>
+                    <input type="file" id="imageFile" class="form-control custom-file-input" accept="image/*" required>
+                    <small class="text-muted">เลือกได้แค่ 1 รูปนะครับ</small>
                     <img id="preview" class="preview-img">
                 </div>
 
