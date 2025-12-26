@@ -57,6 +57,7 @@
                     <label class="form-label">ชื่อผู้ส่ง (LINE Name)</label>
                     <input type="text" id="displayName" class="form-control bg-light" readonly placeholder="กำลังโหลดชื่อ...">
                 </div>
+                <input type="hidden" id="userIdField">
 
                 <div class="mb-4">
                     <label class="form-label">รูปภาพยืนยันการโหวต <span class="required-star">*</span></label>
@@ -133,6 +134,7 @@
             if (liff.isLoggedIn()) {
                 const profile = await liff.getProfile();
                 document.getElementById('displayName').value = profile.displayName;
+                document.getElementById('userIdField').value = profile.userId;
             } else {
                 liff.login();
             }
@@ -152,7 +154,7 @@
             reader.onload = async function() {
                 const data = {
                     lineName: document.getElementById('displayName').value,
-                    userId: userLineID,
+                    userId: document.getElementById('userIdField').value,
                     voteCount: document.getElementById('voteCount').value,
                     image: reader.result,
                     fileName: file.name
