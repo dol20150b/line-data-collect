@@ -87,6 +87,21 @@
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzz-iP9mvoSrK8QittgdXh2ng1jKPnztylOP4Srw6zOgJ9Rx_xTMvW1RV79tEhoymVVeA/exec"; 
         // -----------------------------
 
+        let userLineID = ""; 
+
+    async function main() {
+        await liff.init({ liffId: LIFF_ID });
+        if (liff.isLoggedIn()) {
+            const profile = await liff.getProfile();
+            document.getElementById('displayName').value = profile.displayName;
+            
+            // --- เก็บค่า userId ลงในตัวแปรที่ประกาศไว้ข้างบน ---
+            userLineID = profile.userId; 
+        } else {
+            liff.login();
+        }
+    }
+    main();
         // สร้างตัวเลือก 1-30
         const select = document.getElementById('voteCount');
         for (let i = 1; i <= 30; i++) {
@@ -136,6 +151,7 @@
             reader.onload = async function() {
                 const data = {
                     lineName: document.getElementById('displayName').value,
+                    userId: userLineID,
                     voteCount: document.getElementById('voteCount').value,
                     image: reader.result,
                     fileName: file.name
