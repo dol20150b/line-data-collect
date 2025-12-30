@@ -164,51 +164,103 @@
         main();
 
         // ส่งข้อมูล
-        document.getElementById('voteForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // --- ก๊อปปี้ทับส่วน document.getElementById('voteForm').addEventListener ทั้งหมด ---
+document.getElementById('voteForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const file = fileInput.files[0];
+    
+    // แสดงสถานะกำลังโหลด และซ่อนฟอร์ม
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('voteForm').style.display = 'none';
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file); // เริ่มอ่านไฟล์
+
+    // เมื่ออ่านไฟล์เสร็จ (reader.onload)
+    reader.onload = function(event) {
+        
+        // สร้าง object รูปภาพเพื่อเตรียมย่อ
+        const img = new Image();
+        img.src = event.target.result;
+        
+        // เมื่อรูปโหลดเสร็จ (img.onload) ให้เริ่มคำนวณย่อขนาด
+        img.onload = async function() {
             
-            const file = fileInput.files[0];
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('voteForm').style.display = 'none';
+            // --- เริ่มขั้นตอนการย่อรูป (Compression Logic) ---
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const max_size = 1024; // กำหนดขนาดสูงสุด 1024px
 
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-             reader.onload = async function() {
-                const data = {
-                    lineName: document.getElementById('displayName').value,
-                    userId: document.getElementById('userIdField').value,
-                    voteCount: document.getElementById('voteCount').value,
-                    image: reader.result,
-                    fileName: file.name
-                };
-
-
-                try {
-                    await fetch(WEB_APP_URL, {
-                        method: 'POST',
-                        body: JSON.stringify(data),
-                        mode: 'no-cors'
-                    });
-                    
-                     Swal.fire({
-                        title: 'บันทึกสำเร็จ!',
-                        text: 'ขอบคุณที่ร่วมโหวตครับ',
-                        icon: 'success',
-                        confirmButtonText: 'ตกลง',
-                        confirmButtonColor: '#00b900', // สีเขียว LINE
-                        allowOutsideClick: false
-    }).then((result) => {
-        if (result.isConfirmed) {
-            liff.closeWindow(); // ปิดหน้าต่าง LIFF ทันทีที่กดตกลง
-        }
-    });
-                } catch (err) {
-                    alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
-                    document.getElementById('loading').style.display = 'none';
-                    document.getElementById('voteForm').style.display = 'block';
+            // คำนวณสัดส่วนใหม่
+            if (width > height) {
+                if (width > max_size) {
+                    height *= max_size / width;
+                    width = max_size;
                 }
+            } else {
+                if (height > max_size) {
+                    width *= max_size / height;
+                    height = max_size;
+                }
+            }
+            
+            // วาดรูปลง Canvas ตามขนาดใหม่
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // แปลงกลับเป็น Base64 (ปรับคุณภาพเหลือ 0.8)
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8); 
+
+            // --- เตรียมข้อมูลสำหรับส่ง (ใช้รูปที่ย่อแล้ว) ---
+            const data = {
+                lineName: document.getElementById('displayName').value,
+                userId: document.getElementById('userIdField').value,
+                voteCount: document.getElementById('voteCount').value,
+                image: compressedBase64, // ส่งตัวที่ย่อแล้ว
+                fileName: file.name.split('.')[0] + ".jpg" // เปลี่ยนนามสกุลเป็น jpg เสมอ
             };
-        });
+
+            // --- ส่งข้อมูลไป Google Sheets (Fetch) ---
+            try {
+                await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(data),
+                    mode: 'no-cors'
+                });
+                
+                // แจ้งเตือนสำเร็จ (SweetAlert2)
+                Swal.fire({
+                    title: 'บันทึกสำเร็จ!',
+                    text: 'ขอบคุณที่ร่วมโหวตครับ',
+                    icon: 'success',
+                    confirmButtonText: 'ตกลง',
+                    confirmButtonColor: '#00b900',
+                    allowOutsideClick: false
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        liff.closeWindow();
+                    }
+                });
+
+            } catch (err) {
+                // แจ้งเตือนเมื่อผิดพลาด
+                Swal.fire({
+                    title: 'เกิดข้อผิดพลาด!',
+                    text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่',
+                    icon: 'error',
+                    confirmButtonText: 'รับทราบ'
+                });
+                // ถ้าพลาด ให้กลับมาหน้าฟอร์มเหมือนเดิม
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('voteForm').style.display = 'block';
+            }
+        }; // ปิดปีกกา img.onload
+    }; // ปิดปีกกา reader.onload
+}); // ปิดปีกกา addEventListener
     </script>
 </body>
 </html>
