@@ -173,7 +173,7 @@
 
             const reader = new FileReader();
             reader.readAsDataURL(file);
-             reader.onload = async function() {
+            reader.onload = async function() {
                 const data = {
                     lineName: document.getElementById('displayName').value,
                     userId: document.getElementById('userIdField').value,
