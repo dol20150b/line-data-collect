@@ -94,7 +94,9 @@
                     </select>
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-submit w-100 mt-2">ยืนยันการส่งข้อมูล</button>
+                <button type="submit" id="btnSubmit" class="btn btn-primary btn-submit w-100 mt-2" disabled>
+                    ⏳ กำลังโหลดข้อมูล LINE...
+                </button>
             </form>
 
             <div id="loading">
@@ -157,10 +159,16 @@
                 const profile = await liff.getProfile();
                 document.getElementById('displayName').value = profile.displayName;
                 document.getElementById('userIdField').value = profile.userId;
-            } else {
-                liff.login();
-            }
-        }
+
+        // --- เพิ่มส่วนนี้: ปลดล็อกปุ่มเมื่อข้อมูลมาครบแล้ว ---
+            const btn = document.getElementById('btnSubmit');
+                btn.disabled = false; // เปิดใช้งานปุ่ม
+                btn.innerHTML = "ยืนยันการส่งข้อมูล"; // เปลี่ยนข้อความกลับ
+        // ------------------------------------------------
+    } else {
+        liff.login();
+    }
+}
         main();
 
         // ส่งข้อมูล
