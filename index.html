@@ -227,7 +227,7 @@ document.getElementById('voteForm').addEventListener('submit', async (e) => {
 
             // --- ส่วนที่เพิ่มใหม่: ตัวจับเวลา 60 วินาที ---
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 วินาที ตัดจบ
+            const timeoutId = setTimeout(() => controller.abort(), 40000); // 60 วินาที ตัดจบ
 
             try {
                 await fetch(WEB_APP_URL, {
