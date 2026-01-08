@@ -202,7 +202,7 @@ document.getElementById('voteForm').addEventListener('submit', async (e) => {
             const canvas = document.createElement('canvas');
             let width = img.width;
             let height = img.height;
-            const max_size = 800; 
+            const max_size = 640; 
 
             if (width > height) {
                 if (width > max_size) { height *= max_size / width; width = max_size; }
@@ -215,7 +215,7 @@ document.getElementById('voteForm').addEventListener('submit', async (e) => {
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
             
-            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); 
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5); 
 
             const data = {
                 lineName: document.getElementById('displayName').value,
@@ -227,7 +227,7 @@ document.getElementById('voteForm').addEventListener('submit', async (e) => {
 
             // --- ส่วนที่เพิ่มใหม่: ตัวจับเวลา 60 วินาที ---
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 40000); // 60 วินาที ตัดจบ
+            const timeoutId = setTimeout(() => controller.abort(), 50000); // 60 วินาที ตัดจบ
 
             try {
                 await fetch(WEB_APP_URL, {
