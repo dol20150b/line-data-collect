@@ -23,7 +23,7 @@
             border: 1px solid #ced4da;
             transition: all 0.3s;
         }
-        .form-control:focus { border-color: #00b900; box-shadow: 0 0 0 0.25rem rgba(0, 185, 0, 0.25); }
+        .form-control:focus { border-color: #00b900; box-shadow: 0 0 0 0.25 margin rgba(0, 185, 0, 0.25); }
         .preview-img { 
             width: 100%; 
             max-height: 250px; 
@@ -41,11 +41,30 @@
             font-weight: bold;
             font-size: 1.1rem;
             transition: 0.3s;
-            color: white;
         }
         .btn-submit:hover { background-color: #009900; }
         #loading { display: none; text-align: center; padding: 20px; }
         .required-star { color: red; }
+        /* ตกแต่งปุ่มเลือกไฟล์ให้เป็นสีฟ้า */
+        .custom-file-input::file-selector-button {
+            background-color: #007bff; /* สีฟ้า */
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            margin-right: 10px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .custom-file-input::file-selector-button:hover {
+            background-color: #0056b3; /* สีฟ้าเข้มขึ้นตอนเอาเมาส์วาง */
+        }
+
+        /* ปรับให้ขอบของช่อง input ดูสมูทเข้ากับปุ่ม */
+        .form-control.custom-file-input {
+            padding: 6px;
+        }
     </style>
 </head>
 <body>
@@ -63,7 +82,7 @@
 
                 <div class="mb-4">
                     <label class="form-label">รูปภาพยืนยันการโหวต <span class="required-star">*</span></label>
-                    <input type="file" id="imageFile" class="form-control" accept="image/*" required>
+                    <input type="file" id="imageFile" class="form-control custom-file-input" accept="image/*" required>
                     <small class="text-muted">เลือกได้แค่ 1 รูปนะครับ</small>
                     <img id="preview" class="preview-img">
                 </div>
@@ -82,18 +101,33 @@
 
             <div id="loading">
                 <div class="spinner-border text-success" role="status"></div>
-                <p id="loadingText" class="mt-2">กำลังเตรียมส่งข้อมูล...</p>
+                <p class="mt-2">กำลังบันทึกข้อมูลโหวตของคุณ...</p>
             </div>
         </div>
     </div>
 
     <script>
-        // --- ตั้งค่าการเชื่อมต่อ ---
+        // --- ส่วนตั้งค่า (ใช้ค่าเดิมของคุณ) ---
         const LIFF_ID = "2008774166-NdGxK2ZT"; 
-        // ⚠️ แก้ไข URL ด้านล่างนี้ให้เป็น URL ของ Render ของคุณ
-        const RENDER_URL = "https://vote-api-server.onrender.com/submit"; 
-        // -----------------------
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzz-iP9mvoSrK8QittgdXh2ng1jKPnztylOP4Srw6zOgJ9Rx_xTMvW1RV79tEhoymVVeA/exec"; 
+        // -----------------------------
 
+        let userLineID = ""; 
+
+    async function main() {
+    await liff.init({ liffId: LIFF_ID });
+    if (liff.isLoggedIn()) {
+        const profile = await liff.getProfile();
+        document.getElementById('displayName').value = profile.displayName;
+        
+        // --- ตรวจสอบบรรทัดนี้ครับ ---
+        userLineID = profile.userId; 
+        console.log("Logged in User ID:", userLineID); // ลองใส่บรรทัดนี้เพื่อเช็คใน Console ของคอมพิวเตอร์ได้
+    } else {
+        liff.login();
+        }
+    }
+    main();
         // สร้างตัวเลือก 1-30
         const select = document.getElementById('voteCount');
         for (let i = 1; i <= 30; i++) {
@@ -120,99 +154,126 @@
 
         // เริ่ม LIFF
         async function main() {
-            try {
-                await liff.init({ liffId: LIFF_ID });
-                if (liff.isLoggedIn()) {
-                    const profile = await liff.getProfile();
-                    document.getElementById('displayName').value = profile.displayName;
-                    document.getElementById('userIdField').value = profile.userId;
-                    
-                    const btn = document.getElementById('btnSubmit');
-                    btn.disabled = false;
-                    btn.innerHTML = "ยืนยันการส่งข้อมูล";
-                } else {
-                    liff.login();
-                }
-            } catch (err) {
-                console.error("LIFF Init Error:", err);
-            }
-        }
+            await liff.init({ liffId: LIFF_ID });
+            if (liff.isLoggedIn()) {
+                const profile = await liff.getProfile();
+                document.getElementById('displayName').value = profile.displayName;
+                document.getElementById('userIdField').value = profile.userId;
+
+        // --- เพิ่มส่วนนี้: ปลดล็อกปุ่มเมื่อข้อมูลมาครบแล้ว ---
+            const btn = document.getElementById('btnSubmit');
+                btn.disabled = false; // เปิดใช้งานปุ่ม
+                btn.innerHTML = "ยืนยันการส่งข้อมูล"; // เปลี่ยนข้อความกลับ
+        // ------------------------------------------------
+    } else {
+        liff.login();
+    }
+}
         main();
 
         // ส่งข้อมูล
-        document.getElementById('voteForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // --- ก๊อปปี้ทับส่วน document.getElementById('voteForm').addEventListener ทั้งหมด ---
+// --- ก๊อปปี้ทับส่วน event listener เดิมทั้งหมด ---
+document.getElementById('voteForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-            const uid = document.getElementById('userIdField').value;
-            const file = fileInput.files[0];
+    // เช็ค User ID ก่อนส่ง (กันเหนียว)
+    const uid = document.getElementById('userIdField').value;
+    if (!uid) {
+        Swal.fire('ใจเย็นๆ นะครับ', 'กำลังโหลดข้อมูล LINE กรุณารอสักครู่...', 'warning');
+        return;
+    }
 
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('voteForm').style.display = 'none';
+    const file = fileInput.files[0];
+    
+    // แสดงสถานะกำลังโหลด
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('voteForm').style.display = 'none';
 
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
 
-            reader.onload = function(event) {
-                const img = new Image();
-                img.src = event.target.result;
-                
-                img.onload = async function() {
-                    // --- ย่อรูปเพื่อให้ส่งเข้า Server ได้เร็วขึ้น ---
-                    const canvas = document.createElement('canvas');
-                    let width = img.width;
-                    let height = img.height;
-                    const max_size = 800; 
+    reader.onload = function(event) {
+        const img = new Image();
+        img.src = event.target.result;
+        
+        img.onload = async function() {
+            // --- เริ่มย่อรูป ---
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const max_size = 640; 
 
-                    if (width > height) {
-                        if (width > max_size) { height *= max_size / width; width = max_size; }
-                    } else {
-                        if (height > max_size) { width *= max_size / height; height = max_size; }
-                    }
-                    
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); 
+            if (width > height) {
+                if (width > max_size) { height *= max_size / width; width = max_size; }
+            } else {
+                if (height > max_size) { width *= max_size / height; height = max_size; }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5); 
 
-                    const data = {
-                        lineName: document.getElementById('displayName').value,
-                        userId: uid,
-                        voteCount: document.getElementById('voteCount').value,
-                        image: compressedBase64
-                    };
-
-                    document.getElementById('loadingText').innerText = "กำลังอัปโหลดข้อมูลไปยัง Server...";
-
-                    try {
-                        const response = await fetch(RENDER_URL, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(data)
-                        });
-
-                        const result = await response.json();
-
-                        if (result.status === 'success') {
-                            Swal.fire({
-                                title: 'ได้รับข้อมูลแล้ว!',
-                                text: 'ระบบกำลังทยอยบันทึกลงฐานข้อมูล ขอบคุณครับ',
-                                icon: 'success',
-                                confirmButtonColor: '#00b900'
-                            }).then(() => liff.closeWindow());
-                        } else {
-                            throw new Error("Server response error");
-                        }
-
-                    } catch (err) {
-                        console.error("Submit Error:", err);
-                        Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อ Server ได้ (อาจกำลังเริ่มต้นใหม่) กรุณาลองอีกครั้ง', 'error');
-                        document.getElementById('loading').style.display = 'none';
-                        document.getElementById('voteForm').style.display = 'block';
-                    }
-                };
+            const data = {
+                lineName: document.getElementById('displayName').value,
+                userId: document.getElementById('userIdField').value,
+                voteCount: document.getElementById('voteCount').value,
+                image: compressedBase64,
+                fileName: file.name.split('.')[0] + ".jpg"
             };
-        });
+
+            // --- ส่วนที่เพิ่มใหม่: ตัวจับเวลา 60 วินาที ---
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 50000); // 60 วินาที ตัดจบ
+
+            try {
+                await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(data),
+                    mode: 'no-cors',
+                    signal: controller.signal // ผูกตัวจับเวลา
+                });
+                
+                clearTimeout(timeoutId); // ถ้าเสร็จทัน ก็ยกเลิกตัวจับเวลา
+
+                // สำเร็จ
+                Swal.fire({
+                    title: 'บันทึกสำเร็จ!',
+                    text: 'ขอบคุณที่ร่วมโหวตครับ',
+                    icon: 'success',
+                    confirmButtonText: 'ตกลง',
+                    confirmButtonColor: '#00b900',
+                    allowOutsideClick: false
+                }).then((result) => {
+                    if (result.isConfirmed) { liff.closeWindow(); }
+                });
+
+            } catch (err) {
+                // กรณีเกิด Error หรือ หมดเวลา (Timeout)
+                console.error("Error:", err);
+                
+                let errorMsg = 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่';
+                if (err.name === 'AbortError') {
+                    errorMsg = 'ใช้เวลานานเกินไป! กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง';
+                }
+
+                Swal.fire({
+                    title: 'เกิดข้อผิดพลาด!',
+                    text: errorMsg,
+                    icon: 'error',
+                    confirmButtonText: 'รับทราบ'
+                });
+                
+                // กลับมาหน้าเดิมให้กดส่งใหม่ได้
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('voteForm').style.display = 'block';
+            }
+        };
+    };
+});
     </script>
 </body>
 </html>
