@@ -93,14 +93,13 @@
     <script>
         // --- 1. ตั้งค่า Config ---
         const LIFF_ID = "2008774166-NdGxK2ZT"; 
-        // ⚠️ ตรวจสอบ URL ให้ถูกต้อง (ห้ามมี / ต่อท้าย)
         const RENDER_BASE_URL = "https://vote-api-server.onrender.com"; 
         
         const IMAGEKIT_PUBLIC_KEY = "public_imqavcK65ubUsfYbtZbC21AU3Ws="; 
         const IMAGEKIT_URL_ENDPOINT = "https://ik.imagekit.io/kfhk1q1x8";
         // ------------------------------------
 
-        // เริ่มต้น ImageKit (ไม่ต้องใส่ authenticationEndpoint แล้ว เราจะดึงเอง)
+        // เริ่มต้น ImageKit
         var imagekit = new ImageKit({
             publicKey : IMAGEKIT_PUBLIC_KEY,
             urlEndpoint : IMAGEKIT_URL_ENDPOINT
@@ -130,7 +129,7 @@
             }
         });
 
-        // เริ่ม LIFF
+        // ฟังก์ชันเริ่ม LIFF
         async function main() {
             try {
                 await liff.init({ liffId: LIFF_ID });
@@ -151,41 +150,77 @@
         }
         main();
 
-        // --- ส่วนการส่งข้อมูล (ปรับปรุงใหม่: ดึง Token เอง) ---
+        // --- [ใหม่] ฟังก์ชันย่อรูปภาพ ---
+        function resizeImage(file) {
+            return new Promise((resolve) => {
+                const maxWidth = 1000; // กำหนดความกว้างสูงสุด (px)
+                const quality = 0.8;   // คุณภาพ (0.1 - 1.0)
+                
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        let width = img.width;
+                        let height = img.height;
+
+                        // คำนวณขนาดใหม่
+                        if (width > maxWidth) {
+                            height *= maxWidth / width;
+                            width = maxWidth;
+                        }
+
+                        // วาดลง Canvas
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        // แปลงกลับเป็น Blob เพื่อส่งให้ ImageKit
+                        canvas.toBlob((blob) => {
+                            resolve(blob); // ส่งคืนไฟล์ที่ย่อแล้ว
+                        }, 'image/jpeg', quality);
+                    };
+                };
+            });
+        }
+
+        // --- ส่วนการส่งข้อมูล ---
         document.getElementById('voteForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
             // UI Loading
             document.getElementById('loading').style.display = 'block';
             document.getElementById('voteForm').style.display = 'none';
-            document.getElementById('loadingText').innerText = "กำลังเชื่อมต่อ Server เพื่อขออนุญาต...";
-
+            
             const file = fileInput.files[0];
             const uid = document.getElementById('userIdField').value;
             const lineName = document.getElementById('displayName').value;
             const voteCount = document.getElementById('voteCount').value;
 
             try {
-                // 1. ดึง Token จาก Render เองก่อน (Manual Fetch)
+                // 1. ทำการย่อรูปก่อนส่ง
+                document.getElementById('loadingText').innerText = "กำลังย่อขนาดไฟล์รูป...";
+                const resizedFile = await resizeImage(file); // ได้ไฟล์ใหม่ที่เล็กลงแล้ว
+
+                // 2. ขอ Token
+                document.getElementById('loadingText').innerText = "กำลังเชื่อมต่อ Server...";
                 const authResponse = await fetch(RENDER_BASE_URL + "/auth");
-                
-                if (!authResponse.ok) {
-                    throw new Error("ติดต่อ Server เพื่อขอ Token ไม่ได้ (HTTP " + authResponse.status + ")");
-                }
-
+                if (!authResponse.ok) throw new Error("ขอ Token ไม่สำเร็จ");
                 const authData = await authResponse.json();
-                console.log("ได้ Token มาแล้ว:", authData);
 
+                // 3. ส่งรูป (ที่ย่อแล้ว) ไป ImageKit
                 document.getElementById('loadingText').innerText = "กำลังอัปโหลดรูปภาพ...";
-
-                // 2. ส่งให้ ImageKit โดยแนบ Token ที่ได้มาไปด้วย
+                
                 imagekit.upload({
-                    file : file,
+                    file : resizedFile, // ใช้ไฟล์ที่ย่อแล้วตรงนี้
                     fileName : `vote_${uid}_${Date.now()}.jpg`,
                     tags : ["vote-upload"],
-                    token : authData.token,        // แนบเอง
-                    signature : authData.signature,// แนบเอง
-                    expire : authData.expire       // แนบเอง
+                    token : authData.token,
+                    signature : authData.signature,
+                    expire : authData.expire
                 }, function(err, result) {
                     
                     if(err) {
@@ -193,16 +228,14 @@
                         showError("อัปโหลดรูปไม่สำเร็จ: " + (err.message || "Unknown Error"));
                     } else {
                         console.log("Image Uploaded:", result.url);
-                        document.getElementById('loadingText').innerText = "กำลังบันทึกข้อมูลลง Google Sheet...";
-                        
-                        // 3. ส่งข้อมูลไปบันทึก
+                        document.getElementById('loadingText').innerText = "กำลังบันทึกข้อมูล...";
                         submitDataToBackend(lineName, uid, voteCount, result.url);
                     }
                 });
 
             } catch (error) {
-                console.error("Auth Error:", error);
-                showError("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + error.message);
+                console.error("Process Error:", error);
+                showError("เกิดข้อผิดพลาด: " + error.message);
             }
         });
 
@@ -224,12 +257,12 @@
                 if (result.status === 'success') {
                     Swal.fire({
                         title: 'สำเร็จ!',
-                        text: 'ส่งข้อมูลและรูปภาพเรียบร้อยแล้ว',
+                        text: 'ส่งข้อมูลเรียบร้อยแล้ว',
                         icon: 'success',
                         confirmButtonColor: '#00b900'
                     }).then(() => liff.closeWindow());
                 } else {
-                    throw new Error(result.message || "Server response error");
+                    throw new Error(result.message);
                 }
 
             } catch (err) {
