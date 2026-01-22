@@ -4,13 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ส่งรูปยืนยันโหวต Thailand Vote Top 2025</title>
+    
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script type="text/javascript" src="https://unpkg.com/imagekit-javascript/dist/imagekit.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
+    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     
     <style>
-        /* (ใช้ CSS เดิมของคุณทั้งหมด) */
+        /* (CSS เดิมของคุณทั้งหมด ใช้เหมือนเดิมครับ) */
         body { background-color: #f0f2f5; font-family: 'Kanit', sans-serif; }
         .vote-card {
             background: #ffffff;
@@ -105,7 +108,6 @@
             urlEndpoint : IMAGEKIT_URL_ENDPOINT
         });
 
-        // สร้างตัวเลือก 1-30
         const select = document.getElementById('voteCount');
         for (let i = 1; i <= 30; i++) {
             let opt = document.createElement('option');
@@ -114,7 +116,6 @@
             select.appendChild(opt);
         }
 
-        // Preview รูปภาพ
         const fileInput = document.getElementById('imageFile');
         const preview = document.getElementById('preview');
         fileInput.addEventListener('change', function() {
@@ -129,7 +130,6 @@
             }
         });
 
-        // ฟังก์ชันเริ่ม LIFF
         async function main() {
             try {
                 await liff.init({ liffId: LIFF_ID });
@@ -150,48 +150,10 @@
         }
         main();
 
-        // --- [ใหม่] ฟังก์ชันย่อรูปภาพ ---
-        function resizeImage(file) {
-            return new Promise((resolve) => {
-                const maxWidth = 1000; // กำหนดความกว้างสูงสุด (px)
-                const quality = 0.8;   // คุณภาพ (0.1 - 1.0)
-                
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = (event) => {
-                    const img = new Image();
-                    img.src = event.target.result;
-                    img.onload = () => {
-                        let width = img.width;
-                        let height = img.height;
-
-                        // คำนวณขนาดใหม่
-                        if (width > maxWidth) {
-                            height *= maxWidth / width;
-                            width = maxWidth;
-                        }
-
-                        // วาดลง Canvas
-                        const canvas = document.createElement('canvas');
-                        canvas.width = width;
-                        canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-
-                        // แปลงกลับเป็น Blob เพื่อส่งให้ ImageKit
-                        canvas.toBlob((blob) => {
-                            resolve(blob); // ส่งคืนไฟล์ที่ย่อแล้ว
-                        }, 'image/jpeg', quality);
-                    };
-                };
-            });
-        }
-
-        // --- ส่วนการส่งข้อมูล ---
+        // --- ส่วนการส่งข้อมูล (ปรับปรุงใหม่: ใช้ Library ย่อรูป) ---
         document.getElementById('voteForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            // UI Loading
             document.getElementById('loading').style.display = 'block';
             document.getElementById('voteForm').style.display = 'none';
             
@@ -201,9 +163,19 @@
             const voteCount = document.getElementById('voteCount').value;
 
             try {
-                // 1. ทำการย่อรูปก่อนส่ง
-                document.getElementById('loadingText').innerText = "กำลังย่อขนาดไฟล์รูป...";
-                const resizedFile = await resizeImage(file); // ได้ไฟล์ใหม่ที่เล็กลงแล้ว
+                // 1. ย่อรูปด้วย Library (ปลอดภัยกว่า ไม่ค้าง)
+                document.getElementById('loadingText').innerText = "กำลังปรับขนาดรูปภาพ (ขั้นตอนนี้อาจใช้เวลาสักครู่)...";
+                
+                const options = {
+                    maxSizeMB: 0.5,          // บังคับไฟล์ไม่เกิน 0.5 MB
+                    maxWidthOrHeight: 1000,  // ด้านกว้างหรือสูงไม่เกิน 1200px
+                    useWebWorker: true,      // สำคัญ! ใช้ process แยก ไม่ให้หน้าจอค้าง
+                    fileType: "image/jpeg"   // แปลงเป็น JPEG เสมอ (เบาเครื่อง)
+                };
+
+                const compressedFile = await imageCompression(file, options);
+                // console.log('ขนาดไฟล์เดิม:', file.size / 1024 / 1024, 'MB');
+                // console.log('ขนาดไฟล์ใหม่:', compressedFile.size / 1024 / 1024, 'MB');
 
                 // 2. ขอ Token
                 document.getElementById('loadingText').innerText = "กำลังเชื่อมต่อ Server...";
@@ -211,11 +183,11 @@
                 if (!authResponse.ok) throw new Error("ขอ Token ไม่สำเร็จ");
                 const authData = await authResponse.json();
 
-                // 3. ส่งรูป (ที่ย่อแล้ว) ไป ImageKit
+                // 3. ส่งรูป (ที่ย่อแล้ว)
                 document.getElementById('loadingText').innerText = "กำลังอัปโหลดรูปภาพ...";
                 
                 imagekit.upload({
-                    file : resizedFile, // ใช้ไฟล์ที่ย่อแล้วตรงนี้
+                    file : compressedFile, 
                     fileName : `vote_${uid}_${Date.now()}.jpg`,
                     tags : ["vote-upload"],
                     token : authData.token,
@@ -224,10 +196,9 @@
                 }, function(err, result) {
                     
                     if(err) {
-                        console.error("ImageKit Upload Error:", err);
+                        console.error("ImageKit Error:", err);
                         showError("อัปโหลดรูปไม่สำเร็จ: " + (err.message || "Unknown Error"));
                     } else {
-                        console.log("Image Uploaded:", result.url);
                         document.getElementById('loadingText').innerText = "กำลังบันทึกข้อมูล...";
                         submitDataToBackend(lineName, uid, voteCount, result.url);
                     }
